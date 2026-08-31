@@ -1,0 +1,13 @@
+# Exact versions used to produce the published results (Python 3.12.3).
+# pyproject.toml carries the looser floors; pin these for a bit-faithful rerun.
+duckdb==1.5.2
+pandas==3.0.3
+pyarrow==24.0.0
+numpy==2.4.4
+matplotlib==3.10.9
+
+# paper/ figure reproduction only
+seaborn==0.13.2
+fastparquet==2026.3.0
+
+tqdm            # optional: progress bars during preprocessing

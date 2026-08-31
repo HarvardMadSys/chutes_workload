@@ -1,0 +1,39 @@
+# Generated artifacts (everything under output/ is reproducible)
+/output/
+
+# Fetched datasets, wherever they are unpacked
+*.parquet
+*.oracleGeneral
+# ...except the small ones the repository ships
+!data/paper/cache/*.parquet
+!data/trace/user_cohorts.parquet
+
+# Third-party sources and build trees (cloned + built by run_cachesim.sh)
+libCacheSim/
+LightGBM/
+deps/
+deps_src/
+_build/
+_build_asan/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+
+# Figures ship as PDF; the plotters also emit PNG previews locally.
+figures/**/*.png
+
+# Editors / OS
+.DS_Store
+*.swp
+
+# Release tarballs
+/dist/
+
+# Private: the tooling that builds the released trace from the internal one
+/scripts_internal/

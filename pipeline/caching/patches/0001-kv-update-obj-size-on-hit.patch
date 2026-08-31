@@ -1,0 +1,153 @@
+diff --git a/libCacheSim/cache/cache.c b/libCacheSim/cache/cache.c
+index f3ce0de..62f1520 100644
+--- a/libCacheSim/cache/cache.c
++++ b/libCacheSim/cache/cache.c
+@@ -203,6 +203,15 @@ cache_obj_t *cache_find_base(cache_t *cache, const request_t *req,
+     if (update_cache) {
+       cache_obj->next_access_vtime = req->next_access_vtime;
+       cache_obj->freq += 1;
++#ifdef UPDATE_OBJ_SIZE_ON_HIT
++      /* LLM KV-cache replay: a returning conversation carries a longer
++       * context, so the cached object grows to the new request size */
++      if (cache_obj->obj_size != req->obj_size) {
++        cache->occupied_byte +=
++            (int64_t)req->obj_size - (int64_t)cache_obj->obj_size;
++        cache_obj->obj_size = req->obj_size;
++      }
++#endif
+     }
+   }
+ 
+@@ -243,6 +252,14 @@ bool cache_get_base(cache_t *cache, const request_t *req) {
+   }
+ 
+   if (hit) {
++#ifdef UPDATE_OBJ_SIZE_ON_HIT
++    /* the hit may have grown the object (longer LLM context); if the cache
++     * now overflows, evict immediately as the pre-2023 libCacheSim did */
++    while (cache->get_occupied_byte(cache) > cache->cache_size &&
++           cache->get_n_obj(cache) > 0) {
++      cache->evict(cache, req);
++    }
++#endif
+     VERBOSE("req %ld, obj %ld --- cache hit\n", cache->n_req, req->obj_id);
+   } else if (!cache->can_insert(cache, req)) {
+     VERBOSE("req %ld, obj %ld --- cache miss cannot insert\n", cache->n_req,
+diff --git a/libCacheSim/cache/eviction/ARC.c b/libCacheSim/cache/eviction/ARC.c
+index c8b22d8..e2c3384 100644
+--- a/libCacheSim/cache/eviction/ARC.c
++++ b/libCacheSim/cache/eviction/ARC.c
+@@ -220,12 +220,34 @@ static cache_obj_t *ARC_find(cache_t *cache, const request_t *req,
+                              bool update_cache) {
+   ARC_params_t *params = (ARC_params_t *)(cache->eviction_params);
+ 
++#ifdef UPDATE_OBJ_SIZE_ON_HIT
++  cache_obj_t *pre = hashtable_find_obj_id(cache->hashtable, req->obj_id);
++  int64_t old_size = pre != NULL ? (int64_t)pre->obj_size : -1;
++#endif
++
+   cache_obj_t *obj = cache_find_base(cache, req, update_cache);
+ 
+   if (obj == NULL) {
+     return NULL;
+   }
+ 
++#ifdef UPDATE_OBJ_SIZE_ON_HIT
++  /* cache_find_base resized the object; keep ARC's byte accounting
++   * consistent: ghosts are not resident so the resize is undone, resident
++   * objects propagate the delta into their data-list byte counter */
++  if (update_cache && old_size >= 0 && old_size != (int64_t)obj->obj_size) {
++    int64_t delta = (int64_t)obj->obj_size - old_size;
++    if (obj->ARC.ghost) {
++      cache->occupied_byte -= delta;
++      obj->obj_size = (uint32_t)old_size;
++    } else if (obj->ARC.lru_id == 1) {
++      params->L1_data_size += delta;
++    } else {
++      params->L2_data_size += delta;
++    }
++  }
++#endif
++
+   if (!update_cache) {
+     return obj->ARC.ghost ? NULL : obj;
+   }
+@@ -574,6 +596,17 @@ static void _ARC_evict_miss_on_all_queues(cache_t *cache,
+       _ARC_replace(cache, req);
+       return;
+     } else {
++#ifdef UPDATE_OBJ_SIZE_ON_HIT
++      /* the on-hit eviction loop can reach here with an oversized request
++       * (grown object larger than the cache) while L1 data is empty;
++       * evict from L2 data instead of dereferencing a NULL L1 tail */
++      if (params->L1_data_tail == NULL) {
++        if (params->L2_data_tail != NULL) {
++          _ARC_evict_L2_data(cache, req);
++        }
++        return;
++      }
++#endif
+       // T1 >= c, L1 data size is too large, ghost is empty, so evict from L1
+       // data
+       _ARC_evict_L1_data_no_ghost(cache, req);
+diff --git a/libCacheSim/cache/eviction/LRB/lrb.cpp b/libCacheSim/cache/eviction/LRB/lrb.cpp
+index 14f8bf9..f4f2327 100644
+--- a/libCacheSim/cache/eviction/LRB/lrb.cpp
++++ b/libCacheSim/cache/eviction/LRB/lrb.cpp
+@@ -171,6 +171,21 @@ bool LRBCache::lookup(const SimpleRequest &req) {
+     } else {
+       auto *p = dynamic_cast<InCacheMeta *>(&meta);
+       p->p_last_request = in_cache_lru_queue.re_request(p->p_last_request);
++#ifdef UPDATE_OBJ_SIZE_ON_HIT
++      /* LLM KV-cache replay: a returning conversation carries a longer
++       * context; grow the resident object and evict on overflow so LRB pays
++       * for context growth like every other policy (upstream LRB only sets
++       * _size at admission, silently inflating its effective capacity) */
++      uint64_t new_size = static_cast<uint64_t>(req.size);
++      if (new_size != meta._size) {
++        _currentSize = _currentSize - meta._size + new_size;
++        meta._size = new_size;
++        /* meta/p may dangle after evict() (swap-remove); do not use below */
++        while (_currentSize > _cacheSize) {
++          evict();
++        }
++      }
++#endif
+     }
+     // update negative_candidate_queue
+     ret = !list_idx;
+diff --git a/libCacheSim/cache/eviction/cpp/GDSF.cpp b/libCacheSim/cache/eviction/cpp/GDSF.cpp
+index f3bb2c4..3108464 100644
+--- a/libCacheSim/cache/eviction/cpp/GDSF.cpp
++++ b/libCacheSim/cache/eviction/cpp/GDSF.cpp
+@@ -109,6 +109,16 @@ static bool GDSF_get(cache_t *cache, const request_t *req) {
+   cache_obj_t *obj = cache->find(cache, req, true);
+   bool hit = (obj != NULL);
+ 
++#ifdef UPDATE_OBJ_SIZE_ON_HIT
++  /* mirror cache_get_base's on-hit eviction: the hit may have grown the
++   * object (longer LLM context); evict immediately if the cache overflows */
++  if (hit) {
++    while (cache->get_occupied_byte(cache) > cache->cache_size) {
++      cache->evict(cache, req);
++    }
++  }
++#endif
++
+   if (!hit && cache->can_insert(cache, req)) {
+     cache->insert(cache, req);
+     while (cache->get_occupied_byte(cache) > cache->cache_size) {
+@@ -227,8 +237,11 @@ static cache_obj_t *GDSF_insert(cache_t *cache, const request_t *req) {
+   // large however, when it have effect, it often increases miss ratio because a
+   // list of small objects (with relatively large priority) will stop the
+   // insertion of a large object, however, the newly requested large object is
+-  // likely to be more useful than the small objects if (!GDSF_can_insert(cache,
+-  // req)) return nullptr;
++  // likely to be more useful than the small objects
++  // NOTE: upstream commit 783d575 ("Fix format specifiers", 2025-06-18)
++  // accidentally reflowed the admission call `if (!GDSF_can_insert(cache,
++  // req)) return nullptr;` into the comment above; restored here.
++  if (!GDSF_can_insert(cache, req)) return nullptr;
+ 
+   cache_obj_t *obj = cache_insert_base(cache, req);
+   DEBUG_ASSERT(obj != nullptr);

@@ -1,0 +1,166 @@
+{
+  "figure": "fig20_routing_simulation_tradeoff",
+  "study": "routing_policy_tradeoff",
+  "description": "Routing-simulation tradeoff: (a) hit ratio vs cache size, (b) replication vs cache size, (c) replication vs instance count, (d) imbalance vs instance count; top row DeepSeek V3.2, bottom row MiniMax M2.5.",
+  "caption_models": {
+    "top_row": "DeepSeek V3.2 (model key: v32)",
+    "bottom_row": "MiniMax M2.5 (model key: minimax)"
+  },
+  "workload_config": "workload.json",
+  "simulation": {
+    "driver": "pipeline/routing/run_sweep.py",
+    "cells": 72,
+    "cache_mode": "finite_lru",
+    "session_ttl": null,
+    "load_window": null,
+    "timeline_sample_seconds": 60.0,
+    "random_seed": 10,
+    "grid": {
+      "models": [
+        "v32",
+        "minimax"
+      ],
+      "num_instances": [
+        5,
+        10,
+        15,
+        20
+      ],
+      "cache_size_tokens_per_instance": [
+        1125,
+        5000,
+        25000,
+        50000,
+        100000,
+        250000,
+        500000,
+        1000000,
+        5000000
+      ],
+      "load_metric": [
+        "total_tokens"
+      ],
+      "policies": [
+        "round_robin",
+        "load_first",
+        "cache_first",
+        "sticky"
+      ]
+    },
+    "output_root_default": "output/naive_chain/7day_naive/routing_sweep",
+    "grid_note": "72 cells x 4 policies = the 288 rows of data/routing/figure20_sweep.csv."
+  },
+  "figure_slice": {
+    "load_metric": "total_tokens",
+    "load_metric_note": "Event-driven active load: input_tokens + output_tokens added at schedule time, removed at completed_at.",
+    "panels": {
+      "a": {
+        "title": "Hit ratio vs cache size",
+        "x": "cache_size",
+        "x_scale": "log",
+        "xlabel": "Instance cache size",
+        "y": "token_hit_rate",
+        "ylabel": "Token hit ratio",
+        "fixed": {
+          "num_instances": 20
+        },
+        "policies": [
+          "round_robin",
+          "load_first",
+          "cache_first",
+          "sticky"
+        ],
+        "source_column": "summary.csv:token_hit_rate"
+      },
+      "b": {
+        "title": "Replication vs cache size",
+        "x": "cache_size",
+        "x_scale": "log",
+        "xlabel": "Instance cache size",
+        "y": "effective_replication_ratio",
+        "ylabel": "Replication ratio",
+        "fixed": {
+          "num_instances": 20
+        },
+        "policies": [
+          "round_robin",
+          "load_first",
+          "cache_first",
+          "sticky"
+        ],
+        "source_column": "summary.csv:effective_replication_ratio (total_physical_cache_tokens / total_logical_cache_tokens)"
+      },
+      "c": {
+        "title": "Replication vs instance count",
+        "x": "num_instances",
+        "x_scale": "linear",
+        "xlabel": "# instances",
+        "y": "effective_replication_ratio",
+        "ylabel": "Replication ratio",
+        "fixed": {
+          "cache_size": 25000
+        },
+        "policies": [
+          "round_robin",
+          "load_first",
+          "cache_first",
+          "sticky"
+        ],
+        "source_column": "summary.csv:effective_replication_ratio"
+      },
+      "d": {
+        "title": "Imbalance vs instance count",
+        "x": "num_instances",
+        "x_scale": "linear",
+        "xlabel": "# instances",
+        "y": "load_imbalance_pct",
+        "ylabel": "Load imbalance (%)",
+        "fixed": {
+          "cache_size": 5000000
+        },
+        "policies": [
+          "round_robin",
+          "load_first",
+          "cache_first"
+        ],
+        "excluded": [
+          "sticky"
+        ],
+        "excluded_reason": "sticky pins whole sessions to one instance, which flattens the other lines",
+        "source_column": "derived: (max_mean_token_load - 1) * 100",
+        "derivation": "max_mean_token_load = max(active_tokens_per_sec_mean) / mean(active_tokens_per_sec_mean) over the rows of policy=<p>/instance_metrics.parquet: the peak instance against the fleet average."
+      }
+    }
+  },
+  "style": {
+    "policy_order": [
+      "round_robin",
+      "load_first",
+      "cache_first",
+      "sticky"
+    ],
+    "policy_labels": {
+      "round_robin": "Round-robin",
+      "load_first": "Load-first",
+      "cache_first": "Cache-first",
+      "sticky": "Sticky"
+    },
+    "policy_colors": {
+      "round_robin": "#7f7f7f",
+      "load_first": "#1f77b4",
+      "cache_first": "#d62728",
+      "sticky": "#2ca02c"
+    },
+    "policy_markers": {
+      "round_robin": "o",
+      "load_first": "s",
+      "cache_first": "^",
+      "sticky": "D"
+    },
+    "panel_figsize": [
+      3.6,
+      3.2
+    ],
+    "ylim_pad_fraction": 0.06
+  }
+}

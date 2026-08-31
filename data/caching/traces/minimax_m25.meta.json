@@ -1,0 +1,33 @@
+{
+  "workload": "minimax_m25",
+  "source_parquet": "output/naive_chain/dataset/model=ce6a92e4-5c2f-5681-9742-c80a4447bbdf/window=20260324T000000_20260331T000000/sessions.parquet",
+  "n_requests": 4223356,
+  "n_sessions": 1079756,
+  "wss_bytes": 6311046392,
+  "size_fractions": [
+    1e-05,
+    2e-05,
+    5e-05,
+    0.0001,
+    0.0002,
+    0.0005,
+    0.001,
+    0.002,
+    0.005,
+    0.01
+  ],
+  "expected_cache_sizes_kib": [
+    61,
+    123,
+    308,
+    616,
+    1232,
+    3081,
+    6163,
+    12326,
+    30815,
+    61631
+  ],
+  "trace_path": "output/naive_chain/7day_naive/cache_eviction/traces/minimax_m25.oracleGeneral",
+  "record_bytes": 24
+}

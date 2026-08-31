@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chutes-load-simulator"
+version = "1.0.0"
+description = "Trace-driven routing/caching simulator for LLM serving — reproducibility artifact"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "CC-BY-4.0"}
+dependencies = [
+    "duckdb>=1.0.0",
+    "pandas>=2.0.0",
+    "pyarrow>=14.0.0",
+    "numpy>=1.24.0",
+    "matplotlib>=3.7.0",
+]
+
+[project.optional-dependencies]
+progress = ["tqdm>=4.66.0"]
+paper = ["seaborn>=0.13.0", "fastparquet>=2024.2.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["chutes_sim*"]
