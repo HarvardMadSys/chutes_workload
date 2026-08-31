@@ -151,11 +151,10 @@ provided you give appropriate credit — please cite the paper below.
 If you use the dataset or artifact in your research, please cite our paper:
 
 ```bibtex
-@article{nixon2027year,
-  title   = {A Year in LLM Serving: Workload Evolution, Caching and Load-Balancing},
-  author  = {William Nixon and Jon Durbin and Florian Standhartinger
-             and Haryadi S. Gunawi and Juncheng Yang},
-  journal = {Proceedings of the VLDB Endowment},
-  year    = {2027}
+@article{nixon2026year,
+  title={A Year in LLM Serving: Workload Evolution, Caching and Load-Balancing},
+  author={Nixon, William and Durbin, Jon and Standhartinger, Florian and Gunawi, Haryadi S and Yang, Juncheng},
+  journal={arXiv preprint arXiv:2608.13573},
+  year={2026}
 }
 ```
