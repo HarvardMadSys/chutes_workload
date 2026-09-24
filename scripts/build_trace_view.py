@@ -42,14 +42,13 @@ def main() -> int:
                     help="DuckDB view to write (default: output/trace_view.duckdb)")
     args = ap.parse_args()
 
-    source = artifact.workload_config()["source"]
     trace = args.trace or artifact.trace_file()
     out = args.out or Path(artifact.db_path())
     cohorts = artifact.cohorts_path()
 
     if not trace.is_file():
         raise SystemExit(f"no trace at {trace}\n"
-                         f"fetch it with scripts/fetch_data.sh trace")
+                         f"fetch it with scripts/fetch_data.sh")
     if not cohorts.is_file():
         raise SystemExit(f"no cohort table at {cohorts} (it ships in the repository)")
 
@@ -72,13 +71,13 @@ def main() -> int:
     lo, hi = con.sql("SELECT MIN(started_at), MAX(started_at) FROM all_metrics_user").fetchone()
     con.close()
 
-    expected = source.get("rows")
+    expected = artifact.workload_config()["trace"]["rows"]
     print(f"wrote {out}")
     print(f"  trace     : {trace}")
-    print(f"  rows      : {n:,}" + ("" if expected in (None, n) else f"  (expected {expected:,})"))
+    print(f"  rows      : {n:,}" + ("" if n == expected else f"  (expected {expected:,})"))
     print(f"  timestamps: elapsed from the trace start (origin 1970-01-01 00:00:00)")
     print(f"  span      : {lo} → {hi}  ({(hi - lo).days} days)")
-    if expected not in (None, n):
+    if n != expected:
         print("\nrow count does not match config/workload.json — is the trace complete?")
         return 1
     print(f"\nrun the analyses with:  --db {out}")

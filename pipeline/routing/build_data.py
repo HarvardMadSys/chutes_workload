@@ -42,7 +42,7 @@ CELL_KEYS = ["model", "num_instances", "cache_size", "load_metric", "policy_labe
 
 
 def parse_cell_name(name: str) -> tuple[str, int, int, str] | None:
-    """``v32_N20_cache25000_lm_total_tokens`` -> (v32, 20, 25000, total_tokens)."""
+    """``deepseek_v32_N20_cache25000_lm_total_tokens`` -> (deepseek_v32, 20, 25000, total_tokens)."""
     try:
         model, rest = name.split("_N", 1)
         n_s, rest = rest.split("_cache", 1)
@@ -110,7 +110,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sweep-dir", type=Path, default=artifact.routing_sweep_dir(),
                     help="sweep root written by pipeline/routing/run_sweep.py "
-                         "(default: output/<preprocess>/<workload>/routing_sweep)")
+                         "(default: output/routing_sweep)")
     ap.add_argument("--out", type=Path,
                     default=artifact.artifact_root() / "data/routing/figure20_sweep.csv",
                     help="tidy CSV to write (default: data/routing/figure20_sweep.csv)")

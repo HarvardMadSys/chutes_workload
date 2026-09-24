@@ -7,7 +7,9 @@
 </p>
 
 <p align="center">
-  <a href="#dataset">Dataset</a>
+  <a href="#the-trace">Trace</a>
+  ·
+  <a href="#sessions">Sessions</a>
   ·
   <a href="#reproducing-the-paper">Reproduction</a>
   ·
@@ -40,7 +42,7 @@ The released trace contains one row per API invocation.
 |---|---|
 | `invocation_id` | Request identifier |
 | `function_name` | API endpoint |
-| `chute_id` | Model identifier |
+| `chute_id` | Model identifier (maps to a model name in data/paper/chute_models.csv) |
 | `user_id` | Anonymized user identifier |
 | `rehash_round` | Which 3-month rotation round the row belongs to |
 | `instance_id` | Serving instance |
@@ -54,89 +56,69 @@ The released trace contains one row per API invocation.
 User identifiers are re-anonymized every three months, so
 `(user_id, rehash_round)` is the user key. Timestamps are normalized. 
 
+The dataset is published at
+`https://harvardsys-datasets.s3.us-east-1.amazonaws.com/2026_chutes_anonymized/chutes_trace.parquet`
+
 ## Installation
 
 ```bash
-git clone https://github.com/williamnixon20/VLDB_Chutes_Workload.git
-cd VLDB_Chutes_Workload
-
-python -m venv .venv
-source .venv/bin/activate
-
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-pip install -e .
+
+make fetch    # download chutes_trace.parquet (91 GB, 6,122,413,756 rows) and verify it
+make trace    # expose it to DuckDB as the view all_metrics_user
 ```
 
-## Data
 
-The trace is a single Parquet file, `chutes_trace.parquet` (91 GB,
-6,122,413,756 rows). It is the only download — everything else it needs,
-including the user cohort table, ships in this repository.
+## Sessions
+
+We reconstruct sessions by chaining requests from the same
+`(user, model)` pair. A request is considered to continue an earlier request when
+its prompt contains the earlier request's context as a prefix. For each request, we search up to the previous 10 requests from the same
+`(user, model)` pair for a matching parent. 
+
+Running `make sessions` reconstructs
+sessions for the two models used in our caching and routing studies:
+
+| Model | Key | Rehash rounds | Requests | Sessions |
+|---|---|---:|---:|---:|
+| DeepSeek-V3.2 | `deepseek_v32` | 302–309 | 7,197,399 | 2,473,709 |
+| MiniMax-M2.5 | `minimax_m25` | 346–353 | 4,223,356 | 1,079,756 |
+
+The output, `output/sessions/<key>.parquet`, contains the corresponding trace rows
+plus four session-reconstruction columns:
+
+| Column | Meaning |
+|---|---|
+| `session_id` | `<user_id>#<n>`, a unique identifier for each reconstructed session |
+| `turn_id` | 0 for the first request in a session, then 1, 2, … |
+| `parent_invocation_id` | The request that this request continues (`null` for turn 0) |
+| `prefix_tokens` | The parent's `it + ot`, representing the prefix already present in the current prompt (0 for turn 0) |
+
+These reconstructed sessions are used as the workloads for the caching and routing
+simulations.
+
+
+## Reproducing the paper
 
 ```bash
-scripts/fetch_data.sh          # downloads the trace, resumes if interrupted
-make trace                     # expose it as the DuckDB view all_metrics_user
+make figures      # the 3 simulation figures, from data/caching/ and data/routing/
+make paper        # the 45 trace-analysis figures (the first run queries the trace)
+make sessions     # reconstruct the sessions the two studies replay
+make caching      # eviction sweep, ~1 h including the libCacheSim build
+make routing      # routing sweep, ~30 min
 ```
 
-It is published at
+## Repository structure
 
 ```text
-https://harvardsys-datasets.s3.us-east-1.amazonaws.com/2026_chutes_anonymized/chutes_trace.parquet
-```
-
-If the file is already on the machine, point at it instead — `--link`
-symlinks rather than copying:
-
-```bash
-scripts/fetch_data.sh --from /path/to/chutes_trace.parquet
-```
-
-Either way the fetch ends in a verification pass; `scripts/verify_data.py`
-repeats it at any time. The caching and routing studies run on recovered
-multi-turn sessions, rebuilt from the trace in about 3 minutes:
-
-```bash
-make dataset
-```
-
-## Reproducing the Paper
-
-The paper includes 48 figures: 45 from the workload analysis, 2 from the
-caching study, 1 from the routing study. Three of them redraw from committed
-numbers with no data at all, which is the quickest check that the environment
-works:
-
-```bash
-make figures            # the 3 simulation figures, seconds, no download
-```
-
-The rest need the trace, and the two simulation studies need `make dataset`
-first:
-
-```bash
-make paper              # the 45 workload-analysis figures
-make routing            # routing sweep, ~30 min
-make caching            # eviction sweep, ~1 h including the libCacheSim build
-```
-
-Two checks:
-
-```bash
-make smoke              # replay one routing cell against the published numbers
-make paper-check        # audit figures/ against the paper's figure list
-```
-
-## Repository Structure
-
-```text
-paper/       Workload analysis and paper figure scripts
-pipeline/    Caching and routing experiments
-src/         Simulator implementation
-config/      Dataset, experiment, and figure-list specifications
-data/        Data and results used by the figures
-figures/     Reproduced paper figures
-scripts/     Dataset and reproduction utilities
-output/      Everything generated, including the downloaded trace (gitignored)
+config/     experiment configurations
+data/       small experiment committed results
+figures/    paper's figures
+paper/      paper's plotting script
+pipeline/   Session reconstruction, caching, and routing 
+scripts/    Misc utilities
+src/        Reconstruction and simulator code
 ```
 
 ## License

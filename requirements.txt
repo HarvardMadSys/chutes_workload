@@ -5,9 +5,3 @@ pandas==3.0.3
 pyarrow==24.0.0
 numpy==2.4.4
 matplotlib==3.10.9
-
-# paper/ figure reproduction only
-seaborn==0.13.2
-fastparquet==2026.3.0
-
-tqdm            # optional: progress bars during preprocessing

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "chutes-load-simulator"
 version = "1.0.0"
-description = "Trace-driven routing/caching simulator for LLM serving — reproducibility artifact"
+description = "Session reconstruction and routing simulator for the Chutes LLM serving trace"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "CC-BY-4.0"}
@@ -16,10 +16,6 @@ dependencies = [
     "numpy>=1.24.0",
     "matplotlib>=3.7.0",
 ]
-
-[project.optional-dependencies]
-progress = ["tqdm>=4.66.0"]
-paper = ["seaborn>=0.13.0", "fastparquet>=2024.2.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

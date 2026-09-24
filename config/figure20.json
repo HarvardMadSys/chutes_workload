@@ -3,8 +3,8 @@
   "study": "routing_policy_tradeoff",
   "description": "Routing-simulation tradeoff: (a) hit ratio vs cache size, (b) replication vs cache size, (c) replication vs instance count, (d) imbalance vs instance count; top row DeepSeek V3.2, bottom row MiniMax M2.5.",
   "caption_models": {
-    "top_row": "DeepSeek V3.2 (model key: v32)",
-    "bottom_row": "MiniMax M2.5 (model key: minimax)"
+    "top_row": "DeepSeek V3.2 (model key: deepseek_v32)",
+    "bottom_row": "MiniMax M2.5 (model key: minimax_m25)"
   },
   "workload_config": "workload.json",
   "simulation": {
@@ -17,8 +17,8 @@
     "random_seed": 10,
     "grid": {
       "models": [
-        "v32",
-        "minimax"
+        "deepseek_v32",
+        "minimax_m25"
       ],
       "num_instances": [
         5,
@@ -47,7 +47,7 @@
         "sticky"
       ]
     },
-    "output_root_default": "output/naive_chain/7day_naive/routing_sweep",
+    "output_root_default": "output/routing_sweep",
     "grid_note": "72 cells x 4 policies = the 288 rows of data/routing/figure20_sweep.csv."
   },
   "figure_slice": {

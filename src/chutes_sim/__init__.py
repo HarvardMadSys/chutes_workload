@@ -1,8 +1,7 @@
-"""The chutes load simulator — the code path behind both simulation studies.
+"""Session reconstruction and the load simulator behind both simulation studies.
 
-  preprocess.load_slice            DuckDB -> generation-only trace slice
-  preprocess.build_naive_chains    size-monotonic tightest-fit session recovery
-  preprocess.load_session_parquet  sessions.parquet -> list[Request]
+  sessions.reconstruct_sessions    trace requests -> sessions (the rule is in sessions.py)
+  sessions.load_session_parquet    sessions parquet -> list[Request] for the simulator
   runner.Simulator                 replay against N instances + LRU KV caches
   policies                         round_robin, load_first, cache_first, sticky
   experiment.run_experiment        one (model, N, cache, load_metric) cell

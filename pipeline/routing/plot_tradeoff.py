@@ -4,10 +4,8 @@
 Reads the tidy sweep table produced by ``build_data.py`` and the
 panel spec in ``config/figure20.json``, and renders:
 
-  figures/routing/fig20_routing_tradeoff_mean.pdf / .png   the 2×4 composite
+  figures/routing/fig_routing_tradeoff.pdf / .png   the 2×4 composite
 
-The "_mean" suffix names the panel-(d) ratio and is the filename the paper's
-LaTeX includes (figures/repro/fig20_routing_tradeoff_mean.pdf).
 
 Panels (all at load_metric = total_tokens):
   (a) token hit ratio          vs cache size   · N = 20
@@ -146,7 +144,7 @@ def main() -> int:
     load_metric = slice_cfg["load_metric"]
     panels = slice_cfg["panels"]
     panel_keys = ["a", "b", "c", "d"]
-    rows = [("v32", cfg["caption_models"]["top_row"]), ("minimax", cfg["caption_models"]["bottom_row"])]
+    rows = [("deepseek_v32", cfg["caption_models"]["top_row"]), ("minimax_m25", cfg["caption_models"]["bottom_row"])]
 
     df = pd.read_csv(args.data)
     # Panel (d) is the max/mean token-load ratio: the peak instance against the
@@ -189,7 +187,7 @@ def main() -> int:
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     for ext in ("pdf", "png"):
-        out = args.out_dir / f"fig20_routing_tradeoff_mean.{ext}"
+        out = args.out_dir / f"fig_routing_tradeoff.{ext}"
         fig.savefig(out, bbox_inches="tight", dpi=300)
         print(f"wrote {out}")
     plt.close(fig)

@@ -28,7 +28,7 @@ import pandas as pd
 
 from .config import CacheMode, LoadMetric, SimulationConfig
 from .policies import POLICY_CLASSES, SchedulerPolicy
-from .preprocess import load_session_parquet
+from .sessions import load_session_parquet
 from .runner import Simulator
 from .writer import ResultWriter
 

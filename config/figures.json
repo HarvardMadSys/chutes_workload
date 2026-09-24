@@ -1,5 +1,5 @@
 {
-  "note": "The figures the paper includes, frozen from its \\includegraphics calls. paper/organize_figures.py prunes figures/ to exactly this set. Regenerate with scripts_internal/refresh_figure_list.py when the draft changes. The rank-41 raster was renamed from its real-date filename to a relative one (d166_d227); the paper's \\includegraphics for that figure differs from this name.",
+  "note": "The figures the paper includes, one list per paper section. make paper-check compares figures/ with this list.",
   "sections": {
     "section2_background": [
       "fig_request_rate_day.pdf",
@@ -9,24 +9,24 @@
       "fig_seasonality.pdf"
     ],
     "section3_global": [
-      "fig_token_length_input_cdf_modelhl.pdf",
-      "fig_token_length_output_cdf_modelhl.pdf",
-      "fig_output_input_ratio_cdf_modelhl.pdf",
-      "fig_latency_e2e_cdf_modelhl.pdf",
-      "fig_prefill_fraction_cdf_modelhl.pdf",
-      "fig17c_duration_p50_heatmap.pdf",
+      "fig_token_length_input_cdf_by_model.pdf",
+      "fig_token_length_output_cdf_by_model.pdf",
+      "fig_output_input_ratio_cdf_by_model.pdf",
+      "fig_latency_e2e_cdf_by_model.pdf",
+      "fig_prefill_fraction_cdf_by_model.pdf",
+      "fig_duration_p50_heatmap.pdf",
       "fig_ttft_p50_heatmap_input_output.pdf",
-      "fig16a_ttft_heatmap_input_cache.pdf"
+      "fig_ttft_heatmap_input_cached.pdf"
     ],
     "section4_user_models": [
-      "requests_users_model_density.pdf",
+      "fig_model_requests_vs_users_density.pdf",
       "fig_user_requests_distinct_models_heatmap.pdf",
       "fig_model_median_input_output_heatmap.pdf",
       "fig_user_median_input_output_heatmap.pdf",
-      "standalone_model_rank41_Qwen_Qwen3-Next-80B-A3B-Instruct_d166_d227_u10000bp_r10000bp_user_access_raster.pdf",
-      "openai_gpt-oss-20b_user_access_raster.pdf",
-      "periodic.pdf",
-      "user_raster_explore.pdf",
+      "fig_model_raster_qwen3_next_80b.pdf",
+      "fig_model_raster_gpt_oss_20b.pdf",
+      "fig_user_raster_periodic.pdf",
+      "fig_user_raster_explore.pdf",
       "fig_model_heatmap_fixedxy_density.pdf",
       "fig_model_heatmap_fixedxy_scatter_colored_metrics.pdf",
       "fig_top10_model_monthly_share_legend.pdf",
@@ -39,7 +39,7 @@
       "fig_user_release_cohort_input_band.pdf",
       "fig_user_release_cohort_output_band.pdf",
       "fig_request_cached_fraction_cdf_by_input.pdf",
-      "fig_request_token_hit_rate_cdf_modelhl.pdf",
+      "fig_request_token_hit_rate_cdf_by_model.pdf",
       "fig_model_nreq_vs_avg_hitratio_hexbin.pdf",
       "fig_user_nreq_vs_avg_hitratio_hexbin.pdf",
       "fig_iat_monthly_per_user_band.pdf",
@@ -53,22 +53,22 @@
       "fig_lb_active_instances.pdf",
       "fig_lb_maxmean_tokens.pdf",
       "fig_lb_concurrency.pdf",
-      "f7b_ttft_p90_deepseek-ai__DeepSeek-V3-0324-TEE.pdf",
-      "f7d_decode_p90_deepseek-ai__DeepSeek-V3.2-TEE.pdf",
-      "f1f_user_zoom_high_top_deepseek-ai__DeepSeek-V3.2-TEE.pdf",
-      "f1f_user_zoom_high_min_deepseek-ai__DeepSeek-V3.2-TEE.pdf"
+      "fig_lb_ttft_p90_vs_load.pdf",
+      "fig_lb_decode_p90_vs_load.pdf",
+      "fig_lb_user_zoom_top.pdf",
+      "fig_lb_user_zoom_min.pdf"
     ]
   },
   "external": {
-    "fig_others_minimax_m25_token_hit_ratio__repro.pdf": {
+    "fig_hit_ratio_minimax_m25.pdf": {
       "section": "section6_caching",
-      "generator": "pipeline/caching/plot_paper_figures.py"
+      "generator": "pipeline/caching/plot_hit_ratio.py"
     },
-    "fig_others_deepseek_v32_token_hit_ratio_repro.pdf": {
+    "fig_hit_ratio_deepseek_v32.pdf": {
       "section": "section6_caching",
-      "generator": "pipeline/caching/plot_paper_figures.py"
+      "generator": "pipeline/caching/plot_hit_ratio.py"
     },
-    "fig20_routing_tradeoff_mean.pdf": {
+    "fig_routing_tradeoff.pdf": {
       "section": "section7_casestudy",
       "generator": "pipeline/routing/plot_tradeoff.py"
     }

@@ -1,15 +1,11 @@
 {
-  "workload": "7day_naive",
-  "preprocess": "naive_chain",
-  "description": "Busiest 7-day window per model, replayed in started_at order, with conversation structure recovered by the naive_chain builder.",
-  "source": {
+  "description": "The released trace, and the two models whose busiest 7-day window the simulation studies replay as reconstructed sessions.",
+  "trace": {
     "file": "chutes_trace.parquet",
-    "trace_dir_default": "output/trace",
-    "trace_dir_env": "CHUTES_TRACE_DIR",
-    "cohorts": "data/trace/user_cohorts.parquet",
-    "view_default": "output/trace_view.duckdb",
-    "view_env": "CHUTES_DB_PATH",
+    "url": "https://harvardsys-datasets.s3.us-east-1.amazonaws.com/2026_chutes_anonymized/chutes_trace.parquet",
     "table": "all_metrics_user",
+    "bytes": 91044147663,
+    "sha256": "74833c1469577c5d1f1ef9d7393d165dab31d29950f1d76fe906d5726594e9ec",
     "rows": 6122413756,
     "columns": [
       "invocation_id",
@@ -24,48 +20,22 @@
       "ot",
       "ct",
       "ttft"
-    ],
-    "rotation_months": 3,
-    "time_origin": {
-      "origin": "1970-01-01T00:00:00.000000",
-      "span_days": 366
-    }
-  },
-  "archive": {
-    "base_url": "https://harvardsys-datasets.s3.us-east-1.amazonaws.com/2026_chutes_anonymized",
-    "file": "chutes_trace.parquet"
-  },
-  "preprocess_spec": {
-    "builder": "src/chutes_sim/preprocess.py:build_naive_chains",
-    "entry_point": "pipeline/preprocess/build_sessions.py",
-    "params": {
-      "lookback": 10
-    },
-    "function_whitelist": [
-      "chat",
-      "chat_stream",
-      "completion",
-      "completion_stream"
     ]
   },
   "models": {
-    "v32": {
+    "deepseek_v32": {
       "chute_id": "398651e1-5f85-5e50-a513-7c5324e8e839",
       "model_name": "deepseek-ai/DeepSeek-V3.2-TEE",
-      "caching_workload_label": "deepseek_v32",
       "window_start": "1970-10-30T19:59:59.984705",
       "window_end": "1970-11-06T19:59:59.984705",
-      "window_dir": "window=d302_d309",
       "requests": 7197399,
       "sessions": 2473709
     },
-    "minimax": {
+    "minimax_m25": {
       "chute_id": "ce6a92e4-5c2f-5681-9742-c80a4447bbdf",
       "model_name": "MiniMaxAI/MiniMax-M2.5-TEE",
-      "caching_workload_label": "minimax_m25",
       "window_start": "1970-12-13T19:59:59.984705",
       "window_end": "1970-12-20T19:59:59.984705",
-      "window_dir": "window=d346_d353",
       "requests": 4223356,
       "sessions": 1079756
     }

@@ -5,34 +5,30 @@
 # figures under figures/caching/.
 #
 # Pipeline:
-#   1. build_oracle_traces.py : sessions.parquet -> <out>/traces/{workload}.oracleGeneral
+#   1. build_oracle_traces.py : output/sessions/<model>.parquet -> <out>/traces/<model>.oracleGeneral
 #   2. clone + pin + patch + build libCacheSim, with a small KV-cache patch
 #      (patches/0001-*.patch) that makes a cache hit grow the object to the new
 #      request size and evict immediately on overflow — the semantics KV-cache
 #      reuse actually has. LightGBM is built locally so that
 #      -DENABLE_LRB=ON links.
 #   3. cachesim sweep         : 9 algorithms x 10 cache sizes x 2 workloads
-#   4. plot_paper_figures.py  : the two token-hit-ratio figures the paper
-#                               includes, in the paper's style
+#   4. plot_hit_ratio.py      : the two token-hit-ratio figures the paper includes
 #
 # Usage: ./run_cachesim.sh [--skip-preprocess] [--skip-build] [--skip-sweep]
 #
-# Env: PYTHON (default python3), NJOBS (default: nproc), CHUTES_DATA_ROOT,
-#      CHUTES_OUTPUT_ROOT.
+# Env: PYTHON (default python3), NJOBS (default: nproc), CHUTES_OUTPUT_ROOT.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
-REPO="${CHUTES_ARTIFACT_ROOT:-$(cd "$HERE/../.." && pwd)}"
-[ -f "$REPO/config/cachesim.json" ] || {
-  echo "cannot locate the artifact root from $HERE; set CHUTES_ARTIFACT_ROOT" >&2; exit 1; }
+REPO="$(cd "$HERE/../.." && pwd)"
 cd "$HERE"
 
 PYTHON="${PYTHON:-python3}"
 NJOBS="${NJOBS:-$(nproc 2>/dev/null || echo 8)}"
 
-# Everything generated lands under output/<preprocess>/<workload>/cache_eviction/.
+# Everything generated lands under output/caching/.
 WORK="$("$PYTHON" -c "
 import sys; sys.path.insert(0, '$REPO/src')
-from chutes_sim import artifact; print(artifact.cache_eviction_dir())")"
+from chutes_sim import artifact; print(artifact.caching_dir())")"
 TRACES="$WORK/traces"
 BUILD="$WORK/build"
 DEPS="$BUILD/deps"
@@ -56,10 +52,10 @@ import json,sys; d=json.load(open('$REPO/config/cachesim.json'))
 for k in '$1'.split('.'): d = d[k]
 print(d if not isinstance(d,(list,dict)) else ' '.join(map(str,d)))"; }
 
-LIBCACHESIM_REPO="$(cfg build.libcachesim.repo)"
-LIBCACHESIM_COMMIT="$(cfg build.libcachesim.commit)"
-LIGHTGBM_REPO="$(cfg build.lightgbm.repo)"
-LIGHTGBM_COMMIT="$(cfg build.lightgbm.commit)"
+LIBCACHESIM_REPO="$(cfg libcachesim.repo)"
+LIBCACHESIM_COMMIT="$(cfg libcachesim.commit)"
+LIGHTGBM_REPO="$(cfg lightgbm.repo)"
+LIGHTGBM_COMMIT="$(cfg lightgbm.commit)"
 
 mkdir -p "$WORK" "$RESULTS"
 
@@ -95,8 +91,6 @@ if [[ $SKIP_BUILD -eq 0 ]]; then
     git clone "$LIBCACHESIM_REPO" "$LCS"
   fi
   # Reset to the pinned commit and re-apply the patch from a known-clean tree.
-  # (The previous version guarded on `git diff --quiet -- cache.c`, which
-  # silently skipped patching a partially-applied or hand-edited tree.)
   git -C "$LCS" fetch origin
   git -C "$LCS" checkout -q --force "$LIBCACHESIM_COMMIT"
   git -C "$LCS" reset -q --hard "$LIBCACHESIM_COMMIT"
@@ -138,9 +132,11 @@ if [[ $SKIP_SWEEP -eq 0 ]]; then
   export LD_LIBRARY_PATH="$DEPS/lib:$SRC/libCacheSim/_build:${LD_LIBRARY_PATH:-}"
   # fractions of the byte working-set size; these resolve to the KiB sizes
   # the figures plot (61..61631 KiB / 205..205999 KiB)
-  FRACS="$(cfg sweep.cache_size_fractions_arg)"
-  read -r -a ALGOS <<< "$(cfg sweep.algorithms)"
-  read -r -a WORKLOADS <<< "$(cfg workloads)"
+  FRACS="$(cfg cache_size_fractions)"
+  read -r -a ALGOS <<< "$(cfg algorithms)"
+  read -r -a WORKLOADS <<< "$("$PYTHON" -c "
+import sys; sys.path.insert(0, '$REPO/src')
+from chutes_sim import artifact; print(' '.join(artifact.models()))")"
 
   : > "$RESULTS/results.txt"
   for w in "${WORKLOADS[@]}"; do
@@ -169,7 +165,7 @@ if [[ ! -s "$RESULTS_TXT" ]]; then
 fi
 
 # The two token-hit-ratio figures the paper includes, in the paper's style.
-"$PYTHON" "$REPO/pipeline/caching/plot_paper_figures.py" "$RESULTS_TXT" --out-dir "$FIGS"
+"$PYTHON" "$REPO/pipeline/caching/plot_hit_ratio.py" "$RESULTS_TXT" --out-dir "$FIGS"
 
 # Keep the committed copy in sync with what just ran.
 if [[ "$RESULTS_TXT" != "$COMMITTED" ]]; then

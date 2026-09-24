@@ -1,63 +1,41 @@
-# Paper figure reproduction
+# Trace-analysis figures
 
-One directory per reproduction unit, each regenerating a group of the paper's
-figures from the anonymized one-year trace. This is the third leg of the
-artifact: `pipeline/routing/` and `pipeline/caching/` reproduce the two
-*simulation studies*, and `paper/` reproduces the *trace-analysis figures*
-around them.
+One directory per group of the paper's figures. Each `reproduce.py` queries
+the trace view (`make trace`), caches every query result in
+`output/paper/cache/`, and draws exactly the figures the paper includes into
+`figures/paper/<directory>/`. Each directory's README lists its figures, what
+each one shows, and the cache behind it.
 
-**The paper decides what ships.** `config/figures.json` is the draft's
-`\includegraphics` list, and `organize_figures.py` prunes `figures/` to exactly
-it. Several scripts draw extra variants — a second model, a panel the draft
-dropped, standalone legends — and those are removed rather than shipped.
-
-| Section dir | Paper section(s) | Ships |
-|---|---|---|
-| [`01_workload_overview/`](01_workload_overview/) | §2 Background | 5 of 7 drawn |
-| [`02_token_shape_latency/`](02_token_shape_latency/) | §3 Production Trace Analysis | 8 of 10 |
-| [`03_workload_evolution/`](03_workload_evolution/) | §4 model mix · §5 token shape | 7 of 7 |
-| [`04_prefix_caching/`](04_prefix_caching/) | §5 cache behaviour · §6 IAT | 7 of 7 |
-| [`05_load_balancing/`](05_load_balancing/) | §6 demand · §7 latency, regimes | 8 of ~30 (Part A) |
-| [`06_users_models/`](06_users_models/) | §4 Users and Models | 10 of 10 |
-
-All six need the trace (see below); the shipped cache only shortens a rerun.
-
-The paper's §6 eviction figures and §7 simulation figure come from the
-pipelines, not from here — see "Relationship to the simulation studies".
+| Directory | Paper section | Figures | Redraw without the trace |
+|---|---|---|---|
+| [`01_workload_overview/`](01_workload_overview/) | §2 Background | 5 | all 5 |
+| [`02_token_shape_latency/`](02_token_shape_latency/) | §3 Production Trace Analysis | 8 | all 8 |
+| [`03_workload_evolution/`](03_workload_evolution/) | §4 Users and Models, §5 Workload Evolution | 7 | 5 (not the two cohort figures) |
+| [`04_prefix_caching/`](04_prefix_caching/) | §5 Workload Evolution, §6 Prefix Caching | 7 | 6 (not the TTL coverage) |
+| [`05_load_balancing/`](05_load_balancing/) | §6 Prefix Caching, §7 Load Balancing | 8 | none |
+| [`06_users_models/`](06_users_models/) | §4 Users and Models | 10 | 5 (not the heatmap of per-user medians or the four rasters) |
 
 ```bash
-python paper/01_workload_overview/reproduce.py     # one section
-make paper                                         # every section, then prune
-python paper/organize_figures.py --check           # audit figures/ against the list
+python paper/02_token_shape_latency/reproduce.py   # one directory
+make paper                                         # all six
+make paper-check                                   # compare figures/ with config/figures.json
 ```
 
-Common flags: `--db PATH` (default `$CHUTES_DB_PATH`, else
-`config/workload.json`), `--recompute` (rerun the queries instead of reusing
-`output/paper/cache/`).
+Every script takes `--db PATH` (the DuckDB trace view; default
+`$CHUTES_DB_PATH`, else `output/trace_view.duckdb`) and `--recompute` (rerun
+every query instead of reusing `output/paper/cache/`).
 
-## Auditing the figure set
+**Cache.** The small query results ship in `data/paper/cache/` and are copied
+into `output/paper/cache/` on the first run. A script opens the trace only when
+a result it needs is missing, or with `--recompute`, so the figures marked
+above redraw without the 91 GB download. The rest need the trace once; later
+runs replot from `output/paper/cache/`.
 
-```bash
-python paper/organize_figures.py --check      # missing / extra, changes nothing
-python paper/organize_figures.py --dry-run    # what pruning would remove
-```
+**Time axes.** Trace timestamps count from the first request
+(`1970-01-01 00:00:00` is the start), so time axes show trace days (day 0
+first) or trace months (1 to 13).
 
-`--check` exits non-zero if a figure the paper includes is missing, or if
-`figures/` holds one the paper does not.
-
-## The trace is required
-
-Every section opens the trace at import for a row-count check, so all six need
-it. `data/paper/cache/` ships the small query results, which shortens a rerun
-but does not replace the trace. Pass `--recompute`, or set
-`$CHUTES_SEED_CACHE=0`, to compute everything from the trace instead.
-
-## Figures drawn elsewhere
-
-| Paper figure | Built by |
-|---|---|
-| the two §6 token-hit-ratio figures | `pipeline/caching/plot_paper_figures.py` |
-| the §7 routing tradeoff figure | `pipeline/routing/plot_tradeoff.py` |
-
-These scripts are the paper's own figure scripts with only the paths changed;
-path resolution is centralized in [`_paths.py`](_paths.py).
+The paper's other three figures come from the simulation studies:
+the two §6 token-hit-ratio figures from `pipeline/caching/plot_hit_ratio.py`,
+and the §7 routing figure from `pipeline/routing/plot_tradeoff.py`
+(`make figures` redraws all three from committed results).

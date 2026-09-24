@@ -18,19 +18,18 @@ and runs the four policies sequentially. Output layout per cell:
       policy=<label>/{instance_metrics,policy_summary,instance_load_timeline}.parquet
       summary.csv / summary.md / experiment_config.json
 
-Inputs are the ``sessions.parquet`` files of the published dataset,
-resolved through ``chutes_sim.artifact`` ($CHUTES_DATA_ROOT, else
-``output/<preprocess>/dataset``). Build them with ``make dataset``
-or rebuild them with ``pipeline/preprocess/build_sessions.py``.
+Inputs are the reconstructed sessions, output/sessions/<model>.parquet
+(``make sessions``, see src/chutes_sim/sessions.py). Each session is the unit
+of KV-cache reuse in the simulation.
 
-Each worker holds one sessions.parquet in memory as a list of Request
-objects — budget roughly 6-8 GB of RAM per concurrent cell for v32 and
-3-4 GB for minimax when choosing --max-parallel.
+Each worker holds one model's sessions in memory as a list of Request
+objects — budget roughly 6-8 GB of RAM per concurrent cell for deepseek_v32
+and 3-4 GB for minimax_m25 when choosing --max-parallel.
 
 Usage:
     python pipeline/routing/run_sweep.py
     python pipeline/routing/run_sweep.py --output-root <dir> --max-parallel 24
-    python pipeline/routing/run_sweep.py --models minimax \
+    python pipeline/routing/run_sweep.py --models minimax_m25 \
         --num-instances 5 --cache-sizes 25000        # single-cell smoke test
 
 Then:
@@ -60,12 +59,7 @@ DEFAULT_PARALLEL = max(1, min(24, (os.cpu_count() or 4) // 2))
 
 
 def _sessions_parquet(model_key: str, sessions_root: Path | None = None) -> Path | None:
-    """This model's sessions.parquet, or None if it is not present.
-
-    ``sessions_root`` overrides the dataset root for one call; otherwise
-    ``chutes_sim.artifact.data_root()`` decides ($CHUTES_DATA_ROOT, else
-    ``output/<preprocess>/dataset``).
-    """
+    """This model's sessions parquet (default: output/sessions/<model>.parquet), or None."""
     p = artifact.sessions_parquet(model_key, root=sessions_root)
     return p if p.exists() else None
 
@@ -106,7 +100,6 @@ def run_worker(
         load_metric=load_metric,
         random_seed=random_seed,
         policies=[PolicySpec(label=n, name=n) for n in policy_names],
-        preprocess_method=artifact.preprocess_name(),
         output_dir=output_root,
     )
     root = run_experiment(cfg)
@@ -117,16 +110,14 @@ def run_worker(
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output-root", type=Path, default=artifact.routing_sweep_dir(),
-                    help="directory for the sweep cells "
-                         "(default: output/<preprocess>/<workload>/routing_sweep)")
+                    help="directory for the sweep cells (default: output/routing_sweep)")
     ap.add_argument("--max-parallel", type=int, default=DEFAULT_PARALLEL,
                     help=f"concurrent cell subprocesses (default {DEFAULT_PARALLEL} on this host; "
                          "each holds one sessions.parquet in RAM)")
     ap.add_argument("--random-seed", type=int, default=CFG["simulation"]["random_seed"],
                     help=f"random seed (default {CFG['simulation']['random_seed']})")
     ap.add_argument("--sessions-root", type=Path, default=None,
-                    help="dataset root to load sessions.parquet from "
-                         "(default: $CHUTES_DATA_ROOT or output/<preprocess>/dataset)")
+                    help="directory holding <model>.parquet sessions (default: output/sessions)")
     ap.add_argument("--models", nargs="+", default=GRID["models"], choices=GRID["models"])
     ap.add_argument("--num-instances", type=int, nargs="+", default=GRID["num_instances"])
     ap.add_argument("--cache-sizes", type=int, nargs="+", default=GRID["cache_size_tokens_per_instance"])
@@ -157,10 +148,8 @@ def main() -> int:
     # Fail early on a missing trace rather than 72 subprocesses deep.
     missing = [k for k in args.models if _sessions_parquet(k, args.sessions_root) is None]
     if missing:
-        print(f"missing sessions.parquet for {missing} under {args.sessions_root or artifact.data_root()}\n"
-              f"  build it:   make dataset\n"
-              f"  or rebuild: python pipeline/preprocess/build_sessions.py",
-              file=sys.stderr)
+        print(f"missing sessions for {missing} under {args.sessions_root or artifact.sessions_dir()}\n"
+              f"  build them: make sessions", file=sys.stderr)
         return 2
 
     tasks = [

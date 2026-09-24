@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Fast end-to-end check of both studies against the published numbers.
 
-Runs one routing cell (minimax, N=5, cache=25,000, all four policies) and
+Runs one routing cell (minimax_m25, N=5, cache=25,000, all four policies) and
 compares every value in its ``summary.csv`` against the corresponding row of
 the committed ``data/routing/figure20_sweep.csv``. Then, if a cachesim binary
 has been built, replays one algorithm on one workload and compares the miss
 ratios against ``data/caching/results.txt``.
 
-Needs ``sessions.parquet`` (``make dataset``). Takes a few minutes: the
-routing cell replays all 4.2 M minimax requests four times.
+Needs the reconstructed sessions (``make sessions``). Takes a few minutes: the
+routing cell replays all 4.2 M minimax_m25 requests four times.
 
 Usage:
     python scripts/smoke_test.py
@@ -62,7 +62,7 @@ TOL = 1e-9
 EXCLUDED_COLUMNS = {"elapsed_sec"}
 
 # The cell used for the routing check, and its coordinates in the shipped CSV.
-CELL = dict(model="minimax", num_instances=5, cache_size=25000, load_metric="total_tokens")
+CELL = dict(model="minimax_m25", num_instances=5, cache_size=25000, load_metric="total_tokens")
 
 
 def _run_cell(out_root: Path) -> bool:
@@ -82,8 +82,8 @@ def _run_cell(out_root: Path) -> bool:
 def _routing(keep: bool, reuse: Path | None = None) -> bool:
     parquet = artifact.sessions_parquet(CELL["model"])
     if not parquet.exists():
-        print(f"SKIP routing: no dataset at {parquet}\n"
-              f"     run `make dataset` first")
+        print(f"SKIP routing: no sessions at {parquet}\n"
+              f"     run `make sessions` first")
         return True
 
     published = pd.read_csv(REPO / "data/routing/figure20_sweep.csv")
@@ -143,16 +143,16 @@ def _routing(keep: bool, reuse: Path | None = None) -> bool:
 
 
 def _caching(algo: str, workload: str) -> bool:
-    build = artifact.cache_eviction_dir() / "build/src/libCacheSim/_build/bin/cachesim"
-    trace = artifact.cache_eviction_dir() / "traces" / f"{workload}.oracleGeneral"
+    build = artifact.caching_dir() / "build/src/libCacheSim/_build/bin/cachesim"
+    trace = artifact.caching_dir() / "traces" / f"{workload}.oracleGeneral"
     if not build.exists() or not trace.exists():
         print(f"SKIP caching: need {build.name} and {trace.name}\n"
               f"     run `make caching` (or bash pipeline/caching/run_cachesim.sh)")
         return True
 
     cfg = artifact.load_config("cachesim")
-    fracs = cfg["sweep"]["cache_size_fractions_arg"]
-    deps = artifact.cache_eviction_dir() / "build/deps/lib"
+    fracs = cfg["cache_size_fractions"]
+    deps = artifact.caching_dir() / "build/deps/lib"
     import os
     env = dict(os.environ)
     env["LD_LIBRARY_PATH"] = f"{deps}:{build.parent}:{env.get('LD_LIBRARY_PATH', '')}"
